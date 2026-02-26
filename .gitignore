@@ -1,0 +1,20 @@
+# Python environments
+venv/
+env/
+.env/
+
+# AI Agent folders
+.agent/
+.gemini/
+
+# Compiled python
+__pycache__/
+*.pyc
+*.pyo
+
+# Downloaded Data (large CSV)
+data/
+
+# IDE files
+.vscode/
+.idea/
