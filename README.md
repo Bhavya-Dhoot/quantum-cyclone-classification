@@ -1,105 +1,225 @@
-# Quantum Machine Learning for Tropical Cyclone Intensity Classification
+# Quantum-Enhanced Cyclone Intensity Classification
 
-This repository contains an end-to-end Python implementation of a Quantum Support Vector Machine (QSVM) pipeline for classifying the severity of tropical cyclones. Utilizing the global IBTrACS dataset, this project benchmarks specialized quantum feature maps—specifically Instantaneous Quantum Polynomial (IQP) circuits—against classical SVM algorithms and Variational Quantum Classifiers (VQC), showcasing the potential and current limitations of quantum-enhanced methods for meteorological event classification.
+A hybrid quantum–classical machine learning pipeline for tropical cyclone severity prediction. This project builds quantum kernel support vector machines (QSVMs) using Instantaneous Quantum Polynomial (IQP) feature maps and benchmarks them against classical SVM baselines and variational quantum classifiers on real-world meteorological data from the IBTrACS archive.
 
-## 🌪️ Project Overview
+---
 
-Predicting and classifying the intensity of tropical cyclones is a computationally complex problem. This project investigates whether mapping meteorological features into a high-dimensional quantum Hilbert space can provide a linear separation advantage over classical feature mapping techniques.
+## Motivation
 
-We classify storm conditions into three distinct categories based on maximum sustained wind speed:
-- **Tropical System (TS):** < 64 knots
-- **Moderate Hurricane (MH):** 64 - 95 knots
-- **Severe Hurricane (SH):** ≥ 96 knots
+Tropical cyclone intensity estimation drives evacuation planning, damage forecasting, and insurance modelling worldwide. Traditional satellite-based methods like the Dvorak technique rely on subjective human analysis, while convolutional and recurrent neural networks require massive labelled datasets and compute.
 
-The pipeline downloads raw IBTrACS v4 data, processes six core atmospheric features, constructs quantum feature maps manually (depth $L$ IQP, ZZ, Z), computes kernel overlap matrices natively via Qiskit's exact Statevector algorithms, benchmarks against Qiskit Aer depolarizing noise, evaluates Variational Quantum Classifiers, and explores out-of-distribution generalisation against NOAA and ERA5 climates matrices.
+Quantum kernels offer a fundamentally different approach: encoding meteorological observations into high-dimensional Hilbert spaces through parameterised circuits and computing pairwise state overlaps to form kernel matrices. IQP circuits are particularly interesting because their output distributions are provably hard for classical machines to sample (under standard complexity-theoretic assumptions), which suggests the resulting feature representations may capture correlations inaccessible to polynomial-time classical kernels.
 
-## 🚀 Key Features
+This repository implements, evaluates, and analyses this idea end-to-end.
 
-*   **Automated Data Pipeline:** `data_loader.py` securely downloads and caches the latest IBTrACS archives, intelligently selecting core observations required for modeling. Now expanded to parse ERA5 and NOAA climate matrices for out-of-distribution evaluations.
-*   **Robust Preprocessing:** `preprocessing.py` implements GroupShuffle splits (grouped by Storm ID to prevent leakage), class balancing through undersampling, and zero-mean standardisation with $[\,0, \pi]\,$ mapping. 
-*   **Manual IQP Construction:** `iqp_feature_map.py` builds parametrised depth-$L$ IQP circuits step-by-step for complete mathematical control.
-*   **Statevector Kernel Overlaps:** `quantum_kernels.py` leverages vectorized inner-product operations on statevectors simulating the quantum space, offering mathematically exact matrix formulations bypassing physical shot noise.
-*   **Hardware Noise Simulation:** `quantum_kernels.py` embeds functional Qiskit Aer depolarising noise constraints natively injecting gate deteriorations to assess true hardware stability.
-*   **Variational Quantum Classifier (VQC):** `vqc_baseline.py` establishes native ParameterVector training paradigms mapping identical IQP states structurally into RealAmplitudes rotations using COBYLA tracking.
-*   **Comprehensive Baselines:** `classical_baselines.py` evaluates Linear, 3rd-degree Polynomial, and Radial Basis Function (RBF) classical kernels under robust 5-fold cross-validation grid searches.
-*   **Temporal Runtimes Profiling:** Master scripts natively trace explicit computational wall-clock cycles isolating classical vector matrices natively from dimensional quantum degradation blocks.
+---
 
-## 🛠️ Architecture
+## What this repo does
+
+1. Downloads and preprocesses IBTrACS v4 cyclone records (2004–2023)
+2. Constructs three quantum feature maps: **ZFeatureMap**, **ZZFeatureMap**, and a depth-configurable **IQP** circuit
+3. Computes exact quantum kernel matrices via Qiskit Aer statevector simulation
+4. Trains SVMs on the precomputed kernel matrices and evaluates on held-out test data
+5. Benchmarks against classical Linear, Polynomial, and RBF kernel SVMs
+6. Includes a Variational Quantum Classifier (VQC) baseline with COBYLA optimisation
+7. Tests noise resilience using Qiskit Aer depolarising error models
+8. Evaluates out-of-distribution generalisation on ERA5 and NOAA climate data
+9. Runs statistical stability analysis (10 random seeds with 95% confidence intervals)
+10. Computes kernel eigenvalue spectra to analyse feature space expressivity
+11. Performs feature ablation studies and training size scaling experiments
+
+---
+
+## Classification task
+
+Storms are classified into three intensity categories based on maximum sustained wind speed:
+
+| Category | Wind speed | Label |
+|---|---|---|
+| Tropical System | < 64 kt | 0 |
+| Moderate Hurricane | 64–95 kt | 1 |
+| Severe Hurricane | ≥ 96 kt | 2 |
+
+Six atmospheric features are used: wind speed, sea-level pressure, latitude, longitude, radius of maximum wind, and translational velocity.
+
+---
+
+## Results
+
+### Main comparison
+
+| Method | Training samples | Accuracy | Macro-F1 | Cohen's κ | Runtime |
+|---|---|---|---|---|---|
+| SVM-Linear | 5,493 | 100.0% | 1.000 | 1.000 | 3.2 s |
+| SVM-Poly | 5,493 | 99.9% | 0.999 | 0.998 | 0.7 s |
+| SVM-RBF | 5,493 | 99.9% | 0.999 | 0.999 | 2.9 s |
+| QSVM-Z | 600 | 96.8% | 0.935 | 0.920 | 16.1 s |
+| QSVM-ZZ | 600 | 83.9% | 0.725 | 0.623 | 50.6 s |
+| **QSVM-IQP (L=1)** | **600** | **96.1%** | **0.929** | **0.901** | **30.6 s** |
+| QSVM-IQP (L=2) | 600 | 93.6% | 0.883 | 0.838 | 50.9 s |
+| QSVM-IQP (L=3) | 600 | 92.8% | 0.870 | 0.820 | 73.1 s |
+| Noisy QSVM-IQP | 600 | 94.2% | 0.897 | — | 98.2 s |
+| VQC-IQP | 600 | 82.1% | 0.514 | — | 536.8 s |
+
+Classical baselines have access to 9× more training data. Within the quantum-only comparison (all trained on 600 samples), the single-layer IQP kernel dominates all entangled alternatives.
+
+### Statistical stability (10 seeds)
+
+Mean accuracy: **90.17% ± 0.62%** (95% CI)
+Mean F1: **90.10% ± 0.62%** (95% CI)
+
+### Feature ablation
+
+Removing wind speed causes the largest accuracy drop (−13.3 pp), confirming it as the dominant discriminating variable. Pressure and radius of maximum wind follow. Spatial coordinates (latitude, longitude) have minimal impact.
+
+### Cross-dataset generalisation
+
+Out-of-distribution accuracy on ERA5 and NOAA data drops to ~35%, close to random chance for 3 classes. The model overfits to the highly separable IBTrACS feature distribution. This is a known limitation documented in the paper.
+
+---
+
+## Visualisations
+
+### Confusion matrix (QSVM-IQP, L=1)
+![confusion matrix](figures/confusion_matrix.png)
+
+### IQP circuit depth vs accuracy
+![depth analysis](figures/depth_analysis.png)
+
+### Feature ablation importance
+![feature ablation](figures/feature_ablation.png)
+
+### Training size scaling
+![training scaling](figures/training_scaling.png)
+
+### Kernel eigenvalue spectra
+![eigenvalue spectrum](figures/eigenvalue_spectrum.png)
+
+### Kernel matrix heatmaps (RBF, Z, ZZ, IQP)
+![kernel heatmaps](figures/kernel_heatmaps.png)
+
+### Runtime comparison
+![runtime analysis](figures/runtime_analysis.png)
+
+---
+
+## Repository layout
 
 ```
-Quantum-cyclone-implementation/
-├── requirements.txt
 ├── src/
-│   ├── data_loader.py         # IBTrACS/ERA5/NOAA download & primary filtering
-│   ├── preprocessing.py       # Grouped stratified split, balancing, standardization 
-│   ├── iqp_feature_map.py     # Custom IQP circuit construction
-│   ├── quantum_kernels.py     # Statevector evaluations and Aer Depolarizing Noise models
-│   ├── vqc_baseline.py        # Optimised Variational Quantum Classifier configurations
-│   ├── classical_baselines.py # Baseline SVM cross-validation and hyperparameter selection
-│   ├── evaluation.py          # Cohen's Kappa, Macro-F1, aligning scores
-│   ├── visualisation.py       # Heatmaps, Depth analysis, and Runtime Bar Charts
-│   └── run_experiment.py      # Master execution orchestrator
-├── figures/                   # Output folder for generated analysis charts
-└── results/                   # JSON logs of trial runs and metrics
+│   ├── data_loader.py           # IBTrACS download, ERA5/NOAA loading
+│   ├── preprocessing.py         # GroupShuffleSplit, balancing, standardisation
+│   ├── iqp_feature_map.py       # Depth-L IQP circuit construction
+│   ├── quantum_kernels.py       # Statevector kernel computation + noise models
+│   ├── classical_baselines.py   # Classical SVM training with grid search
+│   ├── vqc_baseline.py          # Variational Quantum Classifier
+│   ├── evaluation.py            # Accuracy, F1, Cohen's κ, kernel alignment
+│   ├── visualisation.py         # All matplotlib plotting code
+│   ├── run_experiment.py        # Main experiment orchestrator
+│   └── epj_validation.py        # Statistical stability, ablation, scaling, spectra
+├── figures/                     # Generated plots (included for reference)
+├── results/                     # JSON output from experiment runs
+├── requirements.txt
+└── .gitignore
 ```
 
-## 📦 Installation & Usage
+---
 
-It is recommended to run this project in a localized Python virtual environment. Python 3.10+ is required.
+## Getting started
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/your-username/quantum-cyclone-classification.git
-   cd quantum-cyclone-classification
-   ```
+**Prerequisites:** Python 3.10+, pip
 
-2. **Initialize Environment & Install Dependencies:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+```bash
+git clone https://github.com/Bhavya-Dhoot/quantum-cyclone-classification.git
+cd quantum-cyclone-classification
 
-3. **Run the End-to-End Experiment:**
-   ```bash
-   python src/run_experiment.py
-   ```
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-## 📊 Experimental Results
+### Run the full experiment pipeline
 
-Using Qiskit's `AerSimulator`, exact statevectors and density matrices were generated. The tests map Quantum Support Vector classifications and VQC dynamics explicitly against Classical tracking.
+```bash
+cd src
+python run_experiment.py
+```
 
-| Method            | Depth | Accuracy | F1    | Alignment | Runtime (s) |
-|-------------------|-------|----------|-------|-----------|-------------|
-| SVM-Linear        | ---   | 100.00%  | 1.000 | 0.1332    | 3.24        |
-| SVM-Poly          | ---   | 99.93%   | 0.999 | 0.1490    | 0.74        |
-| SVM-RBF           | ---   | 99.96%   | 0.999 | 0.2010    | 2.93        |
-| **QSVM-Z**        | 2     | 96.87%   | 0.935 | 0.2657    | 16.14       |
-| **QSVM-ZZ**       | 2     | 83.94%   | 0.725 | 0.1056    | 50.63       |
-| **QSVM-IQP**      | 1     | 96.12%   | 0.929 | 0.2195    | 30.63       |
-| **QSVM-IQP (Best)**| 2    | 93.62%   | 0.883 | 0.1679    | 50.92       |
-| **QSVM-IQP**      | 3     | 92.82%   | 0.870 | 0.1648    | 73.10       |
-| **Noisy QSVM-IQP**| 2     | 94.20%   | 0.897 | 0.1778    | 98.17       |
-| **VQC-IQP**       | 2     | 82.11%   | 0.514 | 0.0000    | 536.76      |
+This downloads the IBTrACS dataset (~150 MB on first run), trains all quantum and classical models, generates figures in `figures/`, and writes metrics to `results/results.json`.
 
-### Generated Visualizations
+### Run the validation experiments only
 
-**Normalised Confusion Matrix (QSVM-IQP L=2)**
-This heatmap maps the model's predictive class probabilities across TS, MH, and SH ground truths.
-![Confusion Matrix](figures/confusion_matrix.png)
+```bash
+cd src
+python epj_validation.py
+```
 
-**Circuit Depth Analysis**
-Illustrates the effect of augmenting quantum layer depth $L$ for the Instantaneous Quantum Polynomial map.
-![Depth Analysis](figures/depth_analysis.png)
+This runs the statistical stability, kernel eigenvalue, feature ablation, and scaling analyses. Outputs go to `figures/` and `results/`.
 
-**Runtime Analysis**
-Evaluates computational cost structures spanning classical operations toward unentangled maps and density degradation loops.
-![Runtime Analysis](figures/runtime_analysis.png)
+---
 
-## 🤝 Contributing
+## Technical details
 
-While this repository is primarily meant to act as a structured snapshot of a finished Quantum Machine Learning framework, contributions bridging additional quantum circuit topologies (like Hardware Efficient Ansätze) or optimizing K-matrix computation strategies (perhaps with Qiskit Primitives) are highly welcomed! Feel free to open issues or submit Pull Requests.
+### IQP feature map
 
-## 📄 License
+Each data point **x** ∈ ℝ⁶ is encoded into a 6-qubit IQP circuit:
 
-This project is licensed under the MIT License. Data provided via [NOAA's IBTrACS](https://www.ncei.noaa.gov/products/international-best-track-archive).
+1. Apply Hadamard gates to all qubits
+2. Apply R_Z(x_j) rotations on each qubit j
+3. Apply controlled-phase CP(x_j · x_k) gates on all qubit pairs (j, k)
+4. Repeat steps 1–3 for L layers
+
+The kernel entry between two samples is K(x, x') = |⟨ψ(x)|ψ(x')⟩|², computed exactly through statevector inner products.
+
+### Kernel computation
+
+All kernel matrices are computed via exact statevector simulation (no shot noise). For N training samples, this requires N circuit executions to obtain statevectors, followed by an N×N matrix of inner products. The O(N²) scaling is the primary bottleneck limiting the quantum training set to 600 samples.
+
+### Noise model
+
+The depolarising noise simulation applies single-qubit errors (p=0.05) on H and R_Z gates and two-qubit errors (p=0.10) on CX gates, roughly approximating current NISQ device error rates.
+
+---
+
+## Known limitations
+
+- **No quantum advantage demonstrated.** Classical SVMs achieve near-perfect accuracy with more data. The IQP kernel shows competitive performance under identical data constraints, but this is a feasibility study.
+- **Statevector simulation only.** All experiments use classical simulation of quantum circuits, not actual quantum hardware.
+- **Poor generalisation.** The model overfits to the IBTrACS distribution and fails on out-of-distribution data.
+- **Fixed IQP parameters.** The phase scaling coefficients α and β are set to 1.0 without optimisation.
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| qiskit ≥ 1.0 | Quantum circuit construction |
+| qiskit-aer | Statevector and noise simulation |
+| qiskit-machine-learning | VQC implementation |
+| qiskit-algorithms | COBYLA optimiser interface |
+| scikit-learn | Classical SVMs, metrics, preprocessing |
+| numpy, pandas | Data manipulation |
+| matplotlib, seaborn | Visualisation |
+| tqdm | Progress bars |
+
+---
+
+## Citation
+
+If you use this code in your research, please cite:
+
+```bibtex
+@article{parthiban2026quantum,
+  title={Quantum-Enhanced Weather Classification: Support Vector Machines with IQP Encoding for Cyclone Prediction},
+  author={Parthiban, K. and Dhoot, Bhavya},
+  journal={EPJ Quantum Technology},
+  year={2026}
+}
+```
+
+---
+
+## License
+
+MIT License. IBTrACS data is provided by [NOAA NCEI](https://www.ncei.noaa.gov/products/international-best-track-archive).
