@@ -1,0 +1,30 @@
+%%% ============================================================
+%%% SECTION 2: RELATED WORK
+%%% ============================================================
+\section{Related Work}\label{sec:related-work}
+
+This study intersects three distinct research domains. These include classical machine learning for weather classification, quantum machine learning architectures, and applied quantum computing in atmospheric science.
+
+\subsection{Classical Machine Learning for Cyclone Classification}
+
+Machine learning applications in tropical cyclone modelling represent a twenty-year research trajectory. Initial studies deployed basic statistical classifiers~\cite{mcgovern2017}. These included logistic regression, linear discriminant analysis, and decision trees. Researchers trained these models using synoptic-scale features from global reanalysis datasets. Classification performance exceeded simple climatological baselines. However, these early models failed to map nonlinear atmospheric variables accurately. Pressure, wind speed, and humidity interact dynamically.
+
+Deep learning architectures emerged to address this limitation. Alemany et al.~\cite{alemany2019} implemented recurrent neural networks for hurricane trajectory forecasting. Sequential architectures naturally outperform static classifiers on temporal weather data. Chen, Zhang, and Wang~\cite{chen2020cyclone} subsequently published a comprehensive review of meteorological ML models. Convolutional networks and gradient-boosted trees dominate current operational literature. Their review highlighted a critical secondary finding. Support vector machines often match or exceed deep learning performance on tabular meteorological data. This remains particularly true under low-data constraints.
+
+Support vector machines rely on rigorous theoretical foundations. Vapnik's statistical learning theory guarantees margin maximisation~\cite{vapnik1995}. The kernel trick enables calculation within high-dimensional spaces. No explicit feature vector construction is required. Previous meteorological studies deployed RBF, polynomial, and sigmoid kernels. Researchers mapped satellite brightness temperatures and reconstructed wind fields successfully. Classical kernels retain strict geometric limitations. Users must select an assumed mathematical projection. Mismatched kernel geometries cause systemic classification failure regardless of dataset size. Quantum alternatives exist to bypass these fixed structural constraints.
+
+\subsection{Quantum Machine Learning for Classification}
+
+Biamonte et al.~\cite{biamonte2017} outlined theoretical foundations for quantum machine learning speedups. Two primary supervised classification paradigms exist in current literature.
+
+Variational quantum classifiers formulate the first paradigm. These models train a parameterised circuit end-to-end using classical gradient descent. Deep variational models offer high theoretical expressivity. Optimisation protocols face a severe mathematical barrier known as the barren plateau problem~\cite{cerezo2021, abbas2021}. Gradients vanish exponentially as circuit depth increases.
+
+Quantum kernel methods establish the second paradigm. This approach avoids circuit parameter optimisation entirely. Schuld~\cite{schuld2021kernel} demonstrated that any supervised quantum model returning expectation values acts fundamentally as a kernel method. The quantum circuit serves as the feature map. The Gram matrix of state overlaps functions as the kernel. The classification task reduces to standard SVM optimisation. Havl{\'i}{\v{c}}ek et al.~\cite{havlicek2019} proved this experimentally using a classically hard feature map.
+
+Feature map design controls ultimate model performance. The ZFeatureMap applies isolated single-qubit rotations. Classical computers simulate these kernels easily. The ZZFeatureMap incorporates pairwise entangling gates. This architecture provides standard baseline entanglement. Liu et al.~\cite{liu2021} established formal mathematical conditions for genuine quantum kernel speedups. Thanasilp et al.~\cite{thanasilp2024} identified systemic constraints regarding circuit depth. Over-parameterised quantum maps trigger exponential concentration. The resulting kernel matrix degenerates into a flat geometry. The classifier subsequently fails to discriminate inputs. IQP circuits operate within the optimal boundary between classical intractability and quantum concentration.
+
+\subsection{Quantum Computing in Weather and Climate Science}
+
+Atmospheric science contains extremely limited quantum computing integrations. Current literature focuses primarily on theoretical speedups within idealized environmental simulations or optimization routines. Practical implementations targeting specific meteorological phenomena remain sparse. 
+
+Current literature contains no instances of IQP feature maps applied to cyclone classification. Our methodology addresses this specific structural gap. We benchmark the IQP kernel against alternative classical and quantum models using a standardised meteorological dataset.

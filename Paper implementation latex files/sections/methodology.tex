@@ -1,0 +1,123 @@
+%%% ============================================================
+%%% SECTION 4: METHODOLOGY
+%%% ============================================================
+\section{Methodology}\label{sec:methodology}
+
+This classification framework relies on five continuous execution stages. We document the classification problem variables, the meteorological preprocessing protocol, the IQP parameter configuration, the kernel matrix assembly instructions, and the final SVM architecture integration.
+
+\subsection{Problem Formulation}
+
+Cyclone intensity classification functions as a standard supervised multi-class problem. We define $\mathbf{x} \in \mathbb{R}^d$ as the foundational feature vector. This vector maps $d$ atmospheric quantities recorded concurrently at a specific six-hourly interval. The model categorises $\mathbf{x}$ into one of $K = 3$ discrete terminal classes:
+
+\begin{itemize}
+    \item \textbf{Class~0 --- Tropical System (TS):} Sustained surface wind speeds register strictly below 64~knots. This bracket captures tropical depressions and tropical storms.
+    \item \textbf{Class~1 --- Moderate Hurricane (MH):} Sustained wind speeds register between 64 and 95~knots. This bracket corresponds to Category~1 and Category~2 events.
+    \item \textbf{Class~2 --- Severe Hurricane (SH):} Sustained wind speeds exceed 96~knots. This bracket aggregates Category~3, 4, and 5 events.
+\end{itemize}
+
+A strict three-class architecture provides mathematical stability. The full five-category Saffir--Simpson scale~\cite{simpson1974} fragments historical datasets. Categories 4 and 5 contain statistically insufficient raw sample counts. Conversely, binary strong/weak classification algorithms ignore critical operational thresholds. Emergency mass evacuation protocols trigger specifically at the boundary separating Class 1 from Class 2.
+
+\subsection{Data Preprocessing}\label{sec:preprocessing}
+
+We extract six objective variables ($d = 6$) from the IBTrACS repository:
+
+\begin{enumerate}
+    \item Maximum sustained wind speed ($v_{\max}$, measured in knots)
+    \item Minimum sea-level pressure ($p_{\min}$, measured in hPa)
+    \item Latitude coordinate of the storm centre ($\lambda$, measured in degrees)
+    \item Longitude coordinate of the storm centre ($\varphi$, measured in degrees)
+    \item Radius of maximum winds ($r_{\max}$, measured in nautical miles)
+    \item Sequential translational speed ($v_t$, measured in knots)
+\end{enumerate}
+
+Figure~\ref{fig:architecture} illustrates the subsequent data transformation geometry.
+
+\paragraph{Missing value handling.} The protocol mandates strict record deletion if any individual parameter array registers an empty integer. Radius of maximum wind tracking exhibits intense historical unreliability. Pre-2004 archives contain massive data voids regarding this specific parameter. We restricted all experimental analysis to the 2004--2023 temporal window to guarantee matrix integrity.
+
+\paragraph{Normalisation.} The algorithm standardises every feature against localized zero mean and unit variance constraints:
+\begin{equation}
+    \tilde{x}_j = \frac{x_j - \mu_j}{\sigma_j}, \quad j = 1, \ldots, d.
+\end{equation}
+The variables $\mu_j$ and $\sigma_j$ isolate training-set mean and standard deviation limits natively. Quantum encoding protocols fail without this strict standardisation loop. Unbounded phase angles trigger rotation oversaturation completely around the Bloch sphere. These parasitic periodicity artefacts fundamentally corrupt kernel generation loops.
+
+\paragraph{Rescaling to $[0, \pi]$.} A linear mathematical conversion maps the standardised arrays directly into the $[0, \pi]$ bound. IQP phase gates require precise rotational sweeping arcs. Extending beyond $\pi$ replicates phase mapping and degrades unique feature representations.
+
+\paragraph{Class balancing.} The raw IBTrACS global archive skews heavily toward Class 0 events. We executed stratified undersampling mathematics across the training partition. This logic forced equivalent vector counts across all three targeted intensity classes. The test dataset bypassed this balancing protocol entirely. Evaluating the system against natural atmospheric inequality prevents artificial operational inflation.
+
+\input{figures/architecture}
+
+\subsection{IQP Feature Map Design}\label{sec:iqp-design}
+
+The computational engine relies entirely on parameterised IQP circuits. These circuits encode six-dimensional observation matrices natively into six-qubit operating states. The system assigns a discrete single hardware qubit to each isolated meteorological feature vector. The algorithm executes the IQP encoding block $L$ discrete sequential times. Equation~\eqref{eq:iqp-circuit} governs this explicit mathematical topology.
+
+The stage array for layer $\ell \in \{1, \ldots, L\}$ executes sequentially:
+
+\begin{enumerate}
+    \item \textbf{Hadamard layer:} We pulse $H$ gates across every active qubit. This generates a pure uniform superposition topology evaluating $2^6 = 64$ parallel basis states.
+    \item \textbf{Single-qubit phase rotations:} Qubit $j$ engages the mathematical transform:
+    \begin{equation}
+        R_Z(\alpha_j^{(\ell)} \tilde{x}_j)
+    \end{equation}
+    This phase mechanic hardcodes the $j$-th observational variable into the explicit quantum state amplitude. The coefficient $\alpha_j^{(\ell)}$ defines global scalar boundaries.
+    \item \textbf{Pairwise controlled-phase gates:} Any integer pair matching $j < k$ executes:
+    \begin{equation}\label{eq:pairwise}
+        \text{CP}(\beta_{jk}^{(\ell)} \tilde{x}_j \tilde{x}_k)
+    \end{equation}
+    This logic loop locks cross-feature variable interactions. The formulation $\tilde{x}_j \tilde{x}_k$ provides baseline polynomial entanglement. The variable $\beta_{jk}^{(\ell)}$ acts as the multiplicative boundary for systemic phase interaction.
+    \item \textbf{Closing Hadamard layer:} We repulse standard $H$ gates across the array to seal the IQP logical block.
+\end{enumerate}
+
+Multiplying $L$ sequential layers generates the finalized unitary matrix limit:
+\begin{equation}\label{eq:full-iqp}
+    U_{\text{IQP}}^{(L)}(\mathbf{x}) = \prod_{\ell=1}^{L} \left[ H^{\otimes n} \cdot \left(\prod_{j<k} \text{CP}(\beta_{jk}^{(\ell)} \tilde{x}_j \tilde{x}_k) \cdot \prod_{j=1}^{n} R_Z(\alpha_j^{(\ell)} \tilde{x}_j) \right) \cdot H^{\otimes n} \right].
+\end{equation}
+
+Our experiments hardcode the values $\alpha_j^{(\ell)} = 1$ and $\beta_{jk}^{(\ell)} = 1$. Systemic layout simplification drove this variable lock constraint. Iterating these phase coordinates via standard kernel-target alignment loops~\cite{lloyd2020} creates massive secondary processing burdens. We restricted evaluation boundaries to exact circuit depths measuring $L \in \{1, 2, 3\}$.
+
+\paragraph{Why pairwise terms matter physically.} The explicit mathematical products generated by $\tilde{x}_j \tilde{x}_k$ mirror physical reality. Cyclone atmospheric thresholds operate largely through squared polynomials. Drops in minimum internal pressure match geometrically against spiking outer sustained wind measurements. Latitude coordinates merge with specific translational speeds to dictate recurvature trajectories. Hardware phase encoding forces the mathematical model to recognise these specific physical boundaries directly. The classifier bypasses blind machine-space approximation processing.
+
+\subsection{Quantum Kernel Construction}\label{sec:kernel-construction}
+
+The encoded IQP matrix outputs process sequentially into the training kernel array. We generate matrix $\mathbf{K} \in \mathbb{R}^{N \times N}$ via:
+\begin{equation}
+    K_{ij} = \abs{\bra{0}^{\otimes n} \, U_{\text{IQP}}^{(L)}(\mathbf{x}_i)^\dagger \, U_{\text{IQP}}^{(L)}(\mathbf{x}_j) \, \ket{0}^{\otimes n}}^2.
+\end{equation}
+
+This calculation demands exact $O(N^2)$ algorithmic loops. The processing architecture supports this specific volume. Attempting this raw calculation against tens of thousands of vectors necessitates forced geometric approximations.
+
+We build the explicit test kernel structure $\mathbf{K}_{\text{test}} \in \mathbb{R}^{M \times N}$ concurrently. This secondary file catalogues isolated geometric mappings between test vectors and training variables.
+
+\subsection{SVM Training and Inference}\label{sec:svm-training}
+
+The fully processed kernel matrices pass into the classical execution environment. The algorithm triggers the standard \texttt{sklearn.svm.SVC} library function. We flag the exact \texttt{precomputed} parameter override~\cite{pedregosa2011}. The system calculates the ideal regularisation variable $C$ autonomously. We evaluate this metric using strict 5-fold cross-validation parsing boundaries mapped against $C \in \{0.1, 1, 10, 100\}$.
+
+Algorithm~\ref{alg:qsvm} documents the entire unified execution protocol sequentially.
+
+\begin{algorithm}[t]
+\caption{IQP-Kernel SVM for Cyclone Classification}\label{alg:qsvm}
+\begin{algorithmic}[1]
+\REQUIRE Training set $\{(\mathbf{x}_i, y_i)\}_{i=1}^N$, test set $\{(\mathbf{x}_j)\}_{j=1}^M$, circuit depth~$L$
+\ENSURE Predicted labels $\{\hat{y}_j\}_{j=1}^M$
+\STATE Preprocess and normalise features (Section~\ref{sec:preprocessing})
+\STATE Rescale features to $[0, \pi]$
+\FOR{each pair $(i, j)$ in training set}
+    \STATE Construct IQP circuits $U_{\text{IQP}}^{(L)}(\mathbf{x}_i)$ and $U_{\text{IQP}}^{(L)}(\mathbf{x}_j)$
+    \STATE Compute $K_{ij} = \abs{\braket{0^n}{U_i^\dagger U_j | 0^n}}^2$ via statevector simulation
+\ENDFOR
+\STATE Select $C$ via 5-fold cross-validation on $\mathbf{K}$
+\STATE Train SVM with precomputed kernel $\mathbf{K}$
+\FOR{each test sample $\mathbf{x}_j$}
+    \STATE Compute test kernel row $K_{\text{test},j} = [k_Q(\mathbf{x}_j, \mathbf{x}_1), \ldots, k_Q(\mathbf{x}_j, \mathbf{x}_N)]$
+    \STATE Predict $\hat{y}_j$ using trained SVM
+\ENDFOR
+\RETURN $\{\hat{y}_j\}_{j=1}^M$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Noise Simulation Backend}\label{sec:noise-sim}
+
+Hardware limitations degrade quantum sequence execution physically. The simulation environment models exact operational breakdown via standard depolarizing noise structures. The backend injects unified depolarizing errors across every hardware gate deployment uniformly. We configure single-qubit operations $H$ and $R_Z$ to suffer a strict $p_1 = 0.05$ rotational deterioration limit. Double-qubit controlled-phase logic paths suffer a magnified $p_2 = 0.10$ execution failure boundary. The kernel computation process transforms the idealized statevector map into a massive structural density matrix under these explicit physical decay parameters. The Hilbert-Schmidt inner product extracts the functional geometrical kernel element $K_{ij}$ from these noisy tensor interactions natively.
+
+\subsection{Variational Quantum Classifier (VQC)}\label{sec:vqc-baseline}
+
+The testing infrastructure runs a secondary Variational Quantum Classifier (VQC) configuration validating the IQP operational baseline directly. The VQC architecture embeds incoming observational data structures through the exact $L=2$ IQP state map natively. A localized RealAmplitudes ansatz string subsequently rotates the embedded data space boundaries. The training algorithm sweeps these parameters iteratively executing the standard COBYLA optimisation strategy. The optimiser loops continuously against 100 fixed maximum cycles to align operational parameters specifically against terminal observational labels. The framework executes categorical output classifications matching explicit one-hot array tracking variables directly.

@@ -65,3 +65,51 @@ def plot_depth_analysis(results_dict: dict, filename: str):
     plt.tight_layout()
     plt.savefig(filename, dpi=300)
     plt.close()
+
+def plot_runtime_comparison(results_dict: dict, filename: str):
+    """
+    Plot computational runtime comparison across models.
+    """
+    logger.info(f"Generating runtime comparison plot: {filename}")
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    models = []
+    runtimes = []
+    colors = []
+    
+    for k, v in results_dict.items():
+        if 'runtime_seconds' in v:
+            models.append(k)
+            runtimes.append(v['runtime_seconds'])
+            if 'SVM' in k and 'QSVM' not in k:
+                colors.append('skyblue')
+            elif 'NOISE' in k:
+                colors.append('salmon')
+            elif 'VQC' in k:
+                colors.append('mediumpurple')
+            else:
+                colors.append('lightgreen')
+                
+    # Sort by runtime descending
+    sorted_indices = np.argsort(runtimes)[::-1]
+    models = [models[i] for i in sorted_indices]
+    runtimes = [runtimes[i] for i in sorted_indices]
+    colors = [colors[i] for i in sorted_indices]
+    
+    plt.figure(figsize=(10, 6))
+    bars = plt.barh(models, runtimes, color=colors, edgecolor='black')
+    
+    plt.xlabel('Runtime (Seconds)')
+    plt.ylabel('Model')
+    plt.title('Computational Runtime Comparison')
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+    
+    # Add text labels
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width:.1f}s', 
+                 va='center', ha='left', fontsize=9)
+                 
+    plt.tight_layout()
+    plt.savefig(filename, dpi=300)
+    plt.close()

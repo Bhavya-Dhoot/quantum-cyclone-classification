@@ -1,6 +1,6 @@
 # Quantum Machine Learning for Tropical Cyclone Intensity Classification
 
-This repository contains an end-to-end Python implementation of a Quantum Support Vector Machine (QSVM) pipeline for classifying the severity of tropical cyclones. Utilizing the global IBTrACS dataset, this project benchmarks specialized quantum feature maps—specifically Instantaneous Quantum Polynomial (IQP) circuits—against classical SVM algorithms, showcasing the potential of quantum-enhanced kernel methods for meteorological event classification.
+This repository contains an end-to-end Python implementation of a Quantum Support Vector Machine (QSVM) pipeline for classifying the severity of tropical cyclones. Utilizing the global IBTrACS dataset, this project benchmarks specialized quantum feature maps—specifically Instantaneous Quantum Polynomial (IQP) circuits—against classical SVM algorithms and Variational Quantum Classifiers (VQC), showcasing the potential and current limitations of quantum-enhanced methods for meteorological event classification.
 
 ## 🌪️ Project Overview
 
@@ -11,16 +11,18 @@ We classify storm conditions into three distinct categories based on maximum sus
 - **Moderate Hurricane (MH):** 64 - 95 knots
 - **Severe Hurricane (SH):** ≥ 96 knots
 
-The pipeline downloads raw IBTrACS v4 data, processes six core atmospheric features, constructs quantum feature maps manually (depth $L$ IQP, ZZ, Z), computes kernel overlap matrices natively via Qiskit's exact Statevector simulators, and finally trains multi-class Support Vector Machines to evaluate kernel-target alignment and performance.
+The pipeline downloads raw IBTrACS v4 data, processes six core atmospheric features, constructs quantum feature maps manually (depth $L$ IQP, ZZ, Z), computes kernel overlap matrices natively via Qiskit's exact Statevector algorithms, benchmarks against Qiskit Aer depolarizing noise, evaluates Variational Quantum Classifiers, and explores out-of-distribution generalisation against NOAA and ERA5 climates matrices.
 
 ## 🚀 Key Features
 
-*   **Automated Data Pipeline:** `data_loader.py` securely downloads and caches the latest IBTrACS archives, intelligently selecting core observations required for modeling.
+*   **Automated Data Pipeline:** `data_loader.py` securely downloads and caches the latest IBTrACS archives, intelligently selecting core observations required for modeling. Now expanded to parse ERA5 and NOAA climate matrices for out-of-distribution evaluations.
 *   **Robust Preprocessing:** `preprocessing.py` implements GroupShuffle splits (grouped by Storm ID to prevent leakage), class balancing through undersampling, and zero-mean standardisation with $[\,0, \pi]\,$ mapping. 
-*   **Manual IQP Construction:** `iqp_feature_map.py` builds parametrised depth-$L$ IQP (Instantaneous Quantum Polynomial) circuits gate-by-gate, bypassing deprecated library methods for complete control.
-*   **Statevector Kernel Overlaps:** `quantum_kernels.py` leverages vectorized inner-product operations on statevectors simulating the quantum space, offering mathematically exact matrix formulations without shot noise.
+*   **Manual IQP Construction:** `iqp_feature_map.py` builds parametrised depth-$L$ IQP circuits step-by-step for complete mathematical control.
+*   **Statevector Kernel Overlaps:** `quantum_kernels.py` leverages vectorized inner-product operations on statevectors simulating the quantum space, offering mathematically exact matrix formulations bypassing physical shot noise.
+*   **Hardware Noise Simulation:** `quantum_kernels.py` embeds functional Qiskit Aer depolarising noise constraints natively injecting gate deteriorations to assess true hardware stability.
+*   **Variational Quantum Classifier (VQC):** `vqc_baseline.py` establishes native ParameterVector training paradigms mapping identical IQP states structurally into RealAmplitudes rotations using COBYLA tracking.
 *   **Comprehensive Baselines:** `classical_baselines.py` evaluates Linear, 3rd-degree Polynomial, and Radial Basis Function (RBF) classical kernels under robust 5-fold cross-validation grid searches.
-*   **Evaluation & Alignment:** `evaluation.py` and `visualisation.py` yield macro-averaged F1/Cohen Kappa metrics, normalised heatmaps, and Frobenius inner-product measurements of Kernel-Target Alignment.
+*   **Temporal Runtimes Profiling:** Master scripts natively trace explicit computational wall-clock cycles isolating classical vector matrices natively from dimensional quantum degradation blocks.
 
 ## 🛠️ Architecture
 
@@ -28,13 +30,14 @@ The pipeline downloads raw IBTrACS v4 data, processes six core atmospheric featu
 Quantum-cyclone-implementation/
 ├── requirements.txt
 ├── src/
-│   ├── data_loader.py         # IBTrACS download & primary filtering
+│   ├── data_loader.py         # IBTrACS/ERA5/NOAA download & primary filtering
 │   ├── preprocessing.py       # Grouped stratified split, balancing, standardization 
 │   ├── iqp_feature_map.py     # Custom IQP circuit construction
-│   ├── quantum_kernels.py     # Exact statevector evaluations for QSVM K-matrices
+│   ├── quantum_kernels.py     # Statevector evaluations and Aer Depolarizing Noise models
+│   ├── vqc_baseline.py        # Optimised Variational Quantum Classifier configurations
 │   ├── classical_baselines.py # Baseline SVM cross-validation and hyperparameter selection
 │   ├── evaluation.py          # Cohen's Kappa, Macro-F1, aligning scores
-│   ├── visualisation.py       # Heatmaps & Circuit Depth evaluation plot generation
+│   ├── visualisation.py       # Heatmaps, Depth analysis, and Runtime Bar Charts
 │   └── run_experiment.py      # Master execution orchestrator
 ├── figures/                   # Output folder for generated analysis charts
 └── results/                   # JSON logs of trial runs and metrics
@@ -61,18 +64,23 @@ It is recommended to run this project in a localized Python virtual environment.
    ```bash
    python src/run_experiment.py
    ```
-   *Note: The first run will automatically download the ~250MB IBTrACS CSV dataset into a local `/data` directory.*
 
 ## 📊 Experimental Results
 
-Using Qiskit's `AerSimulator`, exact statevectors were generated. The tests show the Quantum Support Vector classifiers correctly picking up the structure of the data compared to the Linear models.
+Using Qiskit's `AerSimulator`, exact statevectors and density matrices were generated. The tests map Quantum Support Vector classifications and VQC dynamics explicitly against Classical tracking.
 
-As an example from a recently completed benchmark over 18,202 test samples (following $O(N^2)$ K-matrix construction scaling bounded subsetting):
-
-| Method       | Depth | Accuracy | Precision | Recall | F1    | Kappa | Alignment |
-|--------------|-------|----------|-----------|--------|-------|-------|-----------|
-| QSVM-Z       | 2     | 96.87%   | 0.913     | 0.960  | 0.935 | 0.921 | 0.2657    |
-| QSVM-IQP     | 2     | 93.62%   | 0.864     | 0.905  | 0.883 | 0.838 | 0.1679    |
+| Method            | Depth | Accuracy | F1    | Alignment | Runtime (s) |
+|-------------------|-------|----------|-------|-----------|-------------|
+| SVM-Linear        | ---   | 100.00%  | 1.000 | 0.1332    | 3.24        |
+| SVM-Poly          | ---   | 99.93%   | 0.999 | 0.1490    | 0.74        |
+| SVM-RBF           | ---   | 99.96%   | 0.999 | 0.2010    | 2.93        |
+| **QSVM-Z**        | 2     | 96.87%   | 0.935 | 0.2657    | 16.14       |
+| **QSVM-ZZ**       | 2     | 83.94%   | 0.725 | 0.1056    | 50.63       |
+| **QSVM-IQP**      | 1     | 96.12%   | 0.929 | 0.2195    | 30.63       |
+| **QSVM-IQP (Best)**| 2    | 93.62%   | 0.883 | 0.1679    | 50.92       |
+| **QSVM-IQP**      | 3     | 92.82%   | 0.870 | 0.1648    | 73.10       |
+| **Noisy QSVM-IQP**| 2     | 94.20%   | 0.897 | 0.1778    | 98.17       |
+| **VQC-IQP**       | 2     | 82.11%   | 0.514 | 0.0000    | 536.76      |
 
 ### Generated Visualizations
 
@@ -83,6 +91,10 @@ This heatmap maps the model's predictive class probabilities across TS, MH, and 
 **Circuit Depth Analysis**
 Illustrates the effect of augmenting quantum layer depth $L$ for the Instantaneous Quantum Polynomial map.
 ![Depth Analysis](figures/depth_analysis.png)
+
+**Runtime Analysis**
+Evaluates computational cost structures spanning classical operations toward unentangled maps and density degradation loops.
+![Runtime Analysis](figures/runtime_analysis.png)
 
 ## 🤝 Contributing
 

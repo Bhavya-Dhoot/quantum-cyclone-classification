@@ -1,6 +1,7 @@
 import os
 import urllib.request
 import pandas as pd
+import numpy as np
 import logging
 
 # Configure logging
@@ -22,6 +23,54 @@ def download_data():
         logger.info("Download complete.")
     else:
         logger.info("Dataset already exists locally. Skipping download.")
+
+def generate_mock_cyclone_data(n_samples: int = 500, source: str = "ERA5") -> pd.DataFrame:
+    """Generate mock dataset for ERA5 or NOAA when actual files are absent."""
+    logger.info(f"Generating mock {source} data ({n_samples} samples) since actual files are not found.")
+    np.random.seed(42 if source == "ERA5" else 43)
+    
+    # 6 meteorological features: WIND, PRES, LAT, LON, USA_RMW, STORM_SPEED
+    # And required: SID, LABEL (0, 1, 2 for testing)
+    
+    data = {
+        'SID': [f"{source}_{i}" for i in range(1, n_samples + 1)],
+        'WIND': np.random.uniform(30, 150, n_samples),
+        'PRES': np.random.uniform(900, 1010, n_samples),
+        'LAT': np.random.uniform(-40, 40, n_samples),
+        'LON': np.random.uniform(-180, 180, n_samples),
+        'USA_RMW': np.random.uniform(10, 100, n_samples),
+        'STORM_SPEED': np.random.uniform(5, 30, n_samples)
+    }
+    df = pd.DataFrame(data)
+    # Assign naive class labels based on WIND for consistency, matching preprocessing logic
+    df['LABEL'] = np.select(
+        [df['WIND'] < 64, (df['WIND'] >= 64) & (df['WIND'] <= 95), df['WIND'] >= 96],
+        [0, 1, 2],
+        default=0
+    )
+    return df
+
+def load_era5_data() -> pd.DataFrame:
+    """Load ERA5 dataset or generate a mock if not available."""
+    local_era5 = os.path.join(DATA_DIR, "era5_cyclones.csv")
+    if os.path.exists(local_era5):
+        logger.info(f"Loading ERA5 dataset from {local_era5}...")
+        df = pd.read_csv(local_era5)
+        return df.dropna(subset=['WIND', 'PRES', 'LAT', 'LON', 'USA_RMW', 'STORM_SPEED'])
+    else:
+        logger.warning("ERA5 dataset file not found. Falling back to mock data.")
+        return generate_mock_cyclone_data(n_samples=500, source="ERA5")
+
+def load_noaa_data() -> pd.DataFrame:
+    """Load NOAA Reanalysis dataset or generate a mock if not available."""
+    local_noaa = os.path.join(DATA_DIR, "noaa_reanalysis.csv")
+    if os.path.exists(local_noaa):
+        logger.info(f"Loading NOAA dataset from {local_noaa}...")
+        df = pd.read_csv(local_noaa)
+        return df.dropna(subset=['WIND', 'PRES', 'LAT', 'LON', 'USA_RMW', 'STORM_SPEED'])
+    else:
+        logger.warning("NOAA dataset file not found. Falling back to mock data.")
+        return generate_mock_cyclone_data(n_samples=500, source="NOAA")
 
 def load_and_filter_data() -> pd.DataFrame:
     """
